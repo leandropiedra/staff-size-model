@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sensitivity Analysis — Sequential Planning</title>
+<style>
+:root {
+  --hdr: #002060;
+  --hdr-text: #fff;
+  --total-bg: #DDEBF7;
+  --sub-bg: #f5f5f5;
+  --border: #d0d0d0;
+  --accent: #0078d4;
+  --card: #fff;
+  --result-bg: #f0f6fc;
+  --arrow: #888;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  margin: 0;
+  color: #111;
+  background: #fafafa;
+  line-height: 1.4;
+}
+.topbar {
+  background: var(--hdr);
+  color: var(--hdr-text);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.topbar h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
+.topbar a { color: #b4d4ff; text-decoration: none; font-size: 0.9rem; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 56px; }
+.lead { font-size: 0.92rem; color: #444; margin: 0 0 20px; }
+.step {
+  margin-bottom: 32px;
+  padding-bottom: 8px;
+}
+.step-hdr {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--hdr);
+  margin: 0 0 4px;
+}
+.step-sub {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0 0 14px;
+  font-style: italic;
+}
+.flow-arrow {
+  text-align: center;
+  color: var(--arrow);
+  font-size: 1.5rem;
+  margin: 8px 0 20px;
+  line-height: 1;
+}
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.panel.baseline { border-left: 4px solid var(--hdr); }
+.panel.results {
+  background: var(--result-bg);
+  border-left: 4px solid var(--accent);
+}
+.panel.results .panel-title { color: var(--accent); }
+.panel-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--hdr);
+}
+.input-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.input-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.input-card h4 {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  color: var(--hdr);
+}
+table.compact {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+table.compact th {
+  text-align: left;
+  font-weight: 600;
+  color: #555;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+table.compact th.num, table.compact td.num { text-align: right; }
+table.compact td {
+  padding: 5px 6px;
+  border-bottom: 1px solid #eee;
+}
+table.compact tr:last-child td { border-bottom: none; }
+table.compact input[type="number"] {
+  width: 58px;
+  padding: 3px 4px;
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.82rem;
+}
+table.compact .ref { color: #777; }
+table.compact .calc { color: var(--accent); font-weight: 600; }
+.year-block {
+  border-top: 2px solid var(--hdr);
+  padding-top: 20px;
+  margin-top: 8px;
+}
+details.footnote {
+  margin-top: 28px;
+  font-size: 0.82rem;
+  color: #666;
+}
+details.footnote summary { cursor: pointer; font-weight: 600; color: var(--hdr); }
+.table-block { margin-top: 16px; }
+.table-block h5 {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  color: var(--hdr);
+  font-weight: 700;
+}
+.table-scroll { overflow-x: auto; margin-bottom: 4px; }
+table.anaplan {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.82rem;
+  min-width: 640px;
+}
+table.anaplan th {
+  background: var(--hdr);
+  color: var(--hdr-text);
+  padding: 7px 8px;
+  text-align: left;
+  font-weight: 700;
+  white-space: nowrap;
+}
+table.anaplan th.num, table.anaplan td.num { text-align: right; }
+table.anaplan td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+}
+table.anaplan tr.subtotal td { font-weight: 700; background: var(--sub-bg); border-top: 1px solid #999; }
+table.anaplan tr.grandtotal td { font-weight: 700; background: var(--total-bg); border-top: 1px solid #999; }
+table.anaplan td.neg { color: #333; }
+table.anaplan.monthly { min-width: 900px; }
+table.anaplan.monthly th, table.anaplan.monthly td { font-size: 0.78rem; padding: 4px 6px; }
+.summary-block { margin-top: 36px; padding-top: 24px; border-top: 3px solid var(--hdr); }
+.summary-table-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--hdr);
+  margin: 16px 0 8px;
+}
+.summary-table-title:first-child { margin-top: 0; }
+.summary-tables-wrap { overflow-x: auto; }
+table.anaplan.summary-years {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 720px;
+}
+table.anaplan.summary-years col.col-label { width: 34%; }
+table.anaplan.summary-years col.col-year { width: 13.2%; }
+table.anaplan.summary-years th:first-child,
+table.anaplan.summary-years td:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>Sensitivity Analysis</h1>
+  <span style="opacity:0.85;font-size:0.9rem">Sequential planning · NA Traditional Core · also in Pyramid Forecast tab</span>
+  <a href="staff_dashboard.html">← Staff Dashboard</a>
+</header>
+
+<div class="wrap">
+  <p class="lead">
+    Adjust assumptions year by year. Each year's <strong>Dec EOM</strong> becomes the next year's starting point.
+  </p>
+
+  <div id="app"></div>
+
+  <details class="footnote">
+    <summary>Seasonality (FY2026 Anaplan — applied automatically)</summary>
+    <div id="seasonality-note" style="margin-top:8px"></div>
+  </details>
+</div>
+
+<script src="seasonality_fy26.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const BANDS = ["Senior Partner", "Partner", "AP", "EM", "ASC", "BA"];
+  const PARTNER = new Set(["Partner", "Senior Partner"]);
+  const PROMO_CHAIN = [
+    ["BA", "ASC"],
+    ["ASC", "EM"],
+    ["EM", "AP"],
+    ["AP", "Partner"],
+    ["Partner", "Senior Partner"],
+  ];
+  const PLAN_YEARS = [2027, 2028, 2029, 2030];
+  const ASSUMPTIONS_YEAR = 2027;
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const DEC_2026 = {
+    "Senior Partner": 343, "Partner": 652, "AP": 573,
+    "EM": 1095, "ASC": 2482, "BA": 1427,
+  };
+
+  const FY26 = {
+    avgStaff: 6061,
+    decEOM: DEC_2026,
+    arrivals: { "Senior Partner": 0, "Partner": 0, "AP": 2, "EM": 2, "ASC": 975, "BA": 800 },
+    attritionPct: {
+      "Senior Partner": 27 / 330, "Partner": 73 / 680, "AP": 119 / 568,
+      "EM": 510 / 1030, "ASC": 554 / 2436, "BA": 229 / 1273,
+    },
+    promoPct: {
+      "BA→ASC": 414 / 1273, "ASC→EM": 755 / 2436, "EM→AP": 182 / 1030,
+      "AP→Partner": 74 / 568, "Partner→Senior Partner": 36 / 680,
+    },
+  };
+
+  const STORAGE_KEY = "sensitivity_fy2027_inputs";
+
+  /** User overrides per planning year */
+  const inputs = {};
+  PLAN_YEARS.forEach((y) => {
+    inputs[y] = {
+      arrivalsGrowthPct: Object.fromEntries(BANDS.map((b) => [b, 0])),
+      attritionPct: { ...FY26.attritionPct },
+      promoPct: { ...FY26.promoPct },
+    };
+  });
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      inputs[ASSUMPTIONS_YEAR] = {
+        arrivalsGrowthPct: { ...inputs[ASSUMPTIONS_YEAR].arrivalsGrowthPct, ...parsed.arrivalsGrowthPct },
+        attritionPct: { ...inputs[ASSUMPTIONS_YEAR].attritionPct, ...parsed.attritionPct },
+        promoPct: { ...inputs[ASSUMPTIONS_YEAR].promoPct, ...parsed.promoPct },
+      };
+    }
+  } catch (_) { /* ignore */ }
+
+  function saveAssumptions() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inputs[ASSUMPTIONS_YEAR]));
+    } catch (_) { /* ignore */ }
+  }
+
+  function cloneAssumptions(src) {
+    return {
+      arrivalsGrowthPct: { ...src.arrivalsGrowthPct },
+      attritionPct: { ...src.attritionPct },
+      promoPct: { ...src.promoPct },
+    };
+  }
+
+  /** FY2028–2030 always mirror FY2027 assumption inputs. */
+  function propagateAssumptions() {
+    const base = inputs[ASSUMPTIONS_YEAR];
+    [2028, 2029, 2030].forEach((y) => {
+      inputs[y] = cloneAssumptions(base);
+    });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString("en-US"); }
+  function fmtNeg(n) {
+    if (n <= 0) return n === 0 ? "—" : `(${fmt(-n)})`;
+    return fmt(n);
+  }
+  function pct(n) { return (n * 100).toFixed(1) + "%"; }
+  function pct1(n) { return Number(n).toFixed(1); }
+  function sum(o) { return Object.values(o).reduce((a, b) => a + b, 0); }
+
+  function distribute(total, movement) {
+    return SEASONALITY_FY26.distributeAnnual(total, movement);
+  }
+
+  function rollYear(starting, yearInputs) {
+    const ending = {};
+    const flows = {};
+    BANDS.forEach((b) => {
+      const start = Math.round(starting[b] ?? 0);
+      const dep = Math.round(start * (yearInputs.attritionPct[b] ?? 0));
+      const arr = Math.round(yearInputs.arrivals[b] ?? 0);
+      let promoOut = 0, promoIn = 0;
+      PROMO_CHAIN.forEach(([from, to]) => {
+        if (from === b) promoOut = Math.round(start * (yearInputs.promoPct[`${from}→${to}`] ?? 0));
+        if (to === b) promoIn = Math.round((starting[from] ?? 0) * (yearInputs.promoPct[`${from}→${to}`] ?? 0));
+      });
+      flows[b] = { start, arr, dep, promoOut, promoIn };
+      ending[b] = start + arr - dep - promoOut + promoIn;
+    });
+    const monthly = BANDS.map(() => Array(12).fill(0));
+    const idx = Object.fromEntries(BANDS.map((b, i) => [b, i]));
+    BANDS.forEach((b) => {
+      const f = flows[b];
+      const arrM = distribute(f.arr, "arrivals");
+      const depM = distribute(f.dep, "departures");
+      const outM = distribute(f.promoOut, "promotions");
+      const inM = distribute(f.promoIn, "promotions");
+      let hc = Math.round(starting[b] ?? 0);
+      for (let m = 0; m < 12; m++) {
+        hc = Math.round(hc + arrM[m] - depM[m] - outM[m] + inM[m]);
+        monthly[idx[b]][m] = hc;
+      }
+    });
+    const totalByMonth = Array(12).fill(0);
+    for (let m = 0; m < 12; m++) {
+      totalByMonth[m] = BANDS.reduce((s, b) => s + monthly[idx[b]][m], 0);
+    }
+    const monthlyByBand = Object.fromEntries(BANDS.map((b) => [b, monthly[idx[b]].slice()]));
+    return {
+      ending,
+      flows,
+      monthlyByBand,
+      totalByMonth,
+      avgStaff: totalByMonth.reduce((a, b) => a + b, 0) / 12,
+      totalArrivals: sum(Object.fromEntries(BANDS.map((b) => [b, flows[b].arr]))),
+      totalDepartures: sum(Object.fromEntries(BANDS.map((b) => [b, flows[b].dep]))),
+      totalPromotions: sum(Object.fromEntries(BANDS.map((b) => [b, flows[b].promoOut]))),
+      arrivalsByBand: Object.fromEntries(BANDS.map((b) => [b, flows[b].arr])),
+    };
+  }
+
+  function buildYearInputs(year, priorArrivals) {
+    const u = inputs[year];
+    const arrivals = {};
+    BANDS.forEach((b) => {
+      const g = (u.arrivalsGrowthPct[b] ?? 0) / 100;
+      arrivals[b] = (priorArrivals[b] ?? 0) * (1 + g);
+    });
+    return { arrivals, attritionPct: { ...u.attritionPct }, promoPct: { ...u.promoPct } };
+  }
+
+  function runPlan() {
+    const chain = {};
+    const baselineStart = {
+      "Senior Partner": 330, "Partner": 680, "AP": 568,
+      "EM": 1030, "ASC": 2436, "BA": 1273,
+    };
+    chain.baseline = rollYear(baselineStart, {
+      arrivals: FY26.arrivals,
+      attritionPct: FY26.attritionPct,
+      promoPct: FY26.promoPct,
+    });
+    chain.baseline.avgStaff = FY26.avgStaff;
+    chain.baseline.ending = { ...DEC_2026 };
+
+    let start = { ...DEC_2026 };
+    let priorArr = { ...FY26.arrivals };
+    PLAN_YEARS.forEach((y) => {
+      const yi = buildYearInputs(y, priorArr);
+      const r = rollYear(start, yi);
+      chain[y] = { ...r, yearInputs: yi, priorDec: sum(start) };
+      start = { ...r.ending };
+      priorArr = { ...r.arrivalsByBand };
+    });
+    return chain;
+  }
+
+  function sumFlows(flows, bands) {
+    const s = { start: 0, arr: 0, dep: 0, promoOut: 0, promoIn: 0, end: 0 };
+    bands.forEach((b) => {
+      const f = flows[b];
+      if (!f) return;
+      s.start += f.start;
+      s.arr += f.arr;
+      s.dep += f.dep;
+      s.promoOut += f.promoOut;
+      s.promoIn += f.promoIn;
+    });
+    s.end = s.start + s.arr - s.dep - s.promoOut + s.promoIn;
+    return s;
+  }
+
+  function workforceRow(label, f, cls) {
+    return `<tr class="${cls || ""}">
+      <td>${label}</td>
+      <td class="num">${fmt(f.start)}</td>
+      <td class="num">${f.arr ? fmt(f.arr) : "—"}</td>
+      <td class="num neg">${fmtNeg(-f.dep)}</td>
+      <td class="num neg">${fmtNeg(-f.promoOut)}</td>
+      <td class="num">${f.promoIn ? fmt(f.promoIn) : "—"}</td>
+      <td class="num">${fmt(f.end)}</td>
+    </tr>`;
+  }
+
+  function workforceSummaryTable(r) {
+    const { flows, ending } = r;
+    const partnerBands = ["Senior Partner", "Partner"];
+    const npBands = ["AP", "EM", "ASC", "BA"];
+    const tp = sumFlows(flows, partnerBands);
+    const tnp = sumFlows(flows, npBands);
+    const tot = sumFlows(flows, BANDS);
+
+    let body = "";
+    partnerBands.forEach((b) => {
+      const f = { ...flows[b], end: ending[b] };
+      body += workforceRow(b, f, "detail");
+    });
+    body += workforceRow("Total Partner", tp, "subtotal");
+    npBands.forEach((b) => {
+      const f = { ...flows[b], end: ending[b] };
+      body += workforceRow(b, f, "detail");
+    });
+    body += workforceRow("Total Non-Partner", tnp, "subtotal");
+    body += workforceRow("Total", { ...tot, end: sum(ending) }, "grandtotal");
+
+    return `<div class="table-block">
+      <h5>Workforce Summary</h5>
+      <div class="table-scroll">
+        <table class="anaplan">
+          <thead><tr>
+            <th>Band</th>
+            <th class="num">Starting HC</th>
+            <th class="num">Arrivals</th>
+            <th class="num">Departure (−ve)</th>
+            <th class="num">Elections-Out (−ve)</th>
+            <th class="num">Elections-In</th>
+            <th class="num">Ending HC</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  function monthlyAvg(values) {
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }
+
+  function monthlyStaffTable(r, fiscalYear) {
+    const yy = String(fiscalYear).slice(2);
+    const { monthlyByBand, totalByMonth } = r;
+    const partnerBands = ["Senior Partner", "Partner"];
+    const npBands = ["AP", "EM", "ASC", "BA"];
+
+    function monthCells(bands) {
+      let cells = "";
+      for (let m = 0; m < 12; m++) {
+        const v = bands.reduce((s, b) => s + (monthlyByBand[b]?.[m] ?? 0), 0);
+        cells += `<td class="num">${fmt(v)}</td>`;
+      }
+      const rowAvg = bands.reduce(
+        (s, b) => s + monthlyAvg(monthlyByBand[b] || Array(12).fill(0)),
+        0
+      );
+      cells += `<td class="num"><strong>${fmt(rowAvg)}</strong></td>`;
+      return cells;
+    }
+
+    function bandRow(label, b, cls) {
+      const vals = monthlyByBand[b] || Array(12).fill(0);
+      let cells = vals.map((v) => `<td class="num">${fmt(v)}</td>`).join("");
+      cells += `<td class="num"><strong>${fmt(monthlyAvg(vals))}</strong></td>`;
+      return `<tr class="${cls || ""}"><td>${label}</td>${cells}</tr>`;
+    }
+
+    let head = MONTHS.map((m) => `<th class="num">${yy}-${m}</th>`).join("");
+    let body = "";
+    partnerBands.forEach((b) => { body += bandRow(b, b, "detail"); });
+    body += `<tr class="subtotal"><td>Total Partner</td>${monthCells(partnerBands)}</tr>`;
+    npBands.forEach((b) => { body += bandRow(b, b, "detail"); });
+    body += `<tr class="subtotal"><td>Total Non-Partner</td>${monthCells(npBands)}</tr>`;
+    let totalCells = totalByMonth.map((v) => `<td class="num">${fmt(v)}</td>`).join("");
+    totalCells += `<td class="num"><strong>${fmt(r.avgStaff)}</strong></td>`;
+    body += `<tr class="grandtotal"><td>Total</td>${totalCells}</tr>`;
+
+    return `<div class="table-block">
+      <h5>Average Staff Size</h5>
+      <div class="table-scroll">
+        <table class="anaplan monthly">
+          <thead><tr>
+            <th>Band</th>${head}<th class="num">FY${fiscalYear}</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  function yearTables(r, fiscalYear) {
+    return workforceSummaryTable(r) + monthlyStaffTable(r, fiscalYear);
+  }
+
+  function monthlyAvgSeries(series) {
+    if (!series || !series.length) return 0;
+    return series.reduce((a, b) => a + b, 0) / series.length;
+  }
+
+  function avgStaffBreakdown(r) {
+    const partnerBands = ["Senior Partner", "Partner"];
+    const npBands = ["AP", "EM", "ASC", "BA"];
+    const byBand = Object.fromEntries(
+      BANDS.map((b) => [b, monthlyAvgSeries(r.monthlyByBand[b])])
+    );
+    const totalPartner = partnerBands.reduce((s, b) => s + byBand[b], 0);
+    const totalNonPartner = npBands.reduce((s, b) => s + byBand[b], 0);
+    return { byBand, totalPartner, totalNonPartner, total: totalPartner + totalNonPartner };
+  }
+
+  /** Pyramid Forecast ratios (avg staff by band). P = Partner band; ED = AP. */
+  function computePyramidRatios(avg) {
+    const b = avg.byBand;
+    const partner = b.Partner || 0;
+    const sp = b["Senior Partner"] || 0;
+    const ap = b.AP || 0;
+    const em = b.EM || 0;
+    const ascBa = (b.ASC || 0) + (b.BA || 0);
+    return {
+      npP: avg.totalPartner > 0 ? avg.totalNonPartner / avg.totalPartner : null,
+      pSp: sp > 0 ? partner / sp : null,
+      apP: partner > 0 ? ap / partner : null,
+      emP: partner > 0 ? em / partner : null,
+      ascBaEm: em > 0 ? ascBa / em : null,
+      teamUnitsEd: ap > 0 ? ascBa / ap : null,
+    };
+  }
+
+  function computeYearSummary(r) {
+    const avg = avgStaffBreakdown(r);
+    return { avg, pyramid: computePyramidRatios(avg) };
+  }
+
+  function fmtRatio(v, digits) {
+    if (v == null || Number.isNaN(v)) return "—";
+    return v.toFixed(digits ?? 1);
+  }
+
+  const SUMMARY_COLGROUP =
+    `<colgroup><col class="col-label" /><col class="col-year" /><col class="col-year" /><col class="col-year" /><col class="col-year" /><col class="col-year" /></colgroup>`;
+
+  function multiYearSummaryTable(chain) {
+    const years = [{ label: "FY2026", r: chain.baseline }];
+    PLAN_YEARS.forEach((y) => years.push({ label: `FY${y}`, r: chain[y] }));
+
+    const metrics = years.map((y) => computeYearSummary(y.r));
+
+    const partnerBands = ["Senior Partner", "Partner"];
+    const npBands = ["AP", "EM", "ASC", "BA"];
+    let head = years.map((y) => `<th class="num">${y.label}</th>`).join("");
+
+    let avgBody = "";
+    partnerBands.forEach((b) => {
+      avgBody += `<tr class="detail"><td>${b}</td>${metrics.map((m) => `<td class="num">${fmt(m.avg.byBand[b])}</td>`).join("")}</tr>`;
+    });
+    avgBody += `<tr class="subtotal"><td>Total Partner</td>${metrics.map((m) => `<td class="num">${fmt(m.avg.totalPartner)}</td>`).join("")}</tr>`;
+    npBands.forEach((b) => {
+      avgBody += `<tr class="detail"><td>${b}</td>${metrics.map((m) => `<td class="num">${fmt(m.avg.byBand[b])}</td>`).join("")}</tr>`;
+    });
+    avgBody += `<tr class="subtotal"><td>Total Non-Partner</td>${metrics.map((m) => `<td class="num">${fmt(m.avg.totalNonPartner)}</td>`).join("")}</tr>`;
+    avgBody += `<tr class="grandtotal"><td>Total</td>${metrics.map((m) => `<td class="num">${fmt(m.avg.total)}</td>`).join("")}</tr>`;
+
+    const ratioRows = [
+      { label: "NP : P", fmt: (m) => fmtRatio(m.pyramid.npP, 2) },
+      { label: "P : SP", fmt: (m) => fmtRatio(m.pyramid.pSp, 2) },
+      { label: "AP : P", fmt: (m) => fmtRatio(m.pyramid.apP, 2) },
+      { label: "EM : P", fmt: (m) => fmtRatio(m.pyramid.emP, 2) },
+      { label: "ASC + BA : EM", fmt: (m) => fmtRatio(m.pyramid.ascBaEm, 2) },
+      { label: "Team units per ED", fmt: (m) => fmtRatio(m.pyramid.teamUnitsEd, 2) },
+    ];
+    let ratioBody = ratioRows
+      .map(
+        (row) =>
+          `<tr><td>${row.label}</td>${metrics.map((m) => `<td class="num">${row.fmt(m)}</td>`).join("")}</tr>`
+      )
+      .join("");
+
+    return `<div class="step summary-block">
+      <p class="step-hdr">Multi-Year Summary</p>
+      <p class="step-sub">Average staff size by band and pyramid ratios (Pyramid Forecast definitions) across the planning horizon.</p>
+      <div class="panel">
+        <div class="summary-tables-wrap">
+          <h5 class="summary-table-title">Average Staff Size</h5>
+          <table class="anaplan summary-years">
+            ${SUMMARY_COLGROUP}
+            <thead><tr><th>Band</th>${head}</tr></thead>
+            <tbody>${avgBody}</tbody>
+          </table>
+          <h5 class="summary-table-title">Pyramid Ratios</h5>
+          <table class="anaplan summary-years">
+            ${SUMMARY_COLGROUP}
+            <thead><tr><th>Ratio</th>${head}</tr></thead>
+            <tbody>${ratioBody}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function arrivalsCard(year, priorLabel, priorArrivals, computed) {
+    const u = inputs[year];
+    let rows = BANDS.map((b) => {
+      const g = u.arrivalsGrowthPct[b] ?? 0;
+      const calc = computed.arrivalsByBand[b];
+      return `<tr>
+        <td>${b}</td>
+        <td class="num ref">${fmt(priorArrivals[b])}</td>
+        <td class="num"><input type="number" step="1" value="${g}" data-y="${year}" data-band="${b}" data-kind="arr-growth"/>%</td>
+        <td class="num calc">${fmt(calc)}</td>
+      </tr>`;
+    }).join("");
+    return `<div class="input-card">
+      <h4>Arrivals growth vs ${priorLabel}</h4>
+      <table class="compact">
+        <thead><tr><th>Band</th><th class="num">${priorLabel} arr.</th><th class="num">Change</th><th class="num">Result</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function rateCard(title, year, kind, refRates, field) {
+    const u = inputs[year];
+    let rows = "";
+    if (kind === "attrition") {
+      rows = BANDS.map((b) => `<tr>
+        <td>${b}</td>
+        <td class="num ref">${pct(FY26.attritionPct[b])}</td>
+        <td class="num"><input type="number" step="0.1" min="0" max="60" value="${pct1(u.attritionPct[b] * 100)}" data-y="${year}" data-band="${b}" data-kind="attr"/>%</td>
+      </tr>`).join("");
+    } else {
+      rows = PROMO_CHAIN.map(([from, to]) => {
+        const key = `${from}→${to}`;
+        return `<tr>
+          <td>${from} → ${to}</td>
+          <td class="num ref">${pct(FY26.promoPct[key])}</td>
+          <td class="num"><input type="number" step="0.1" min="0" max="100" value="${pct1(u.promoPct[key] * 100)}" data-y="${year}" data-promo="${key}" data-kind="promo"/>%</td>
+        </tr>`;
+      }).join("");
+    }
+    return `<div class="input-card">
+      <h4>${title}</h4>
+      <table class="compact">
+        <thead><tr><th>${kind === "attrition" ? "Band" : "Path"}</th><th class="num">FY2026 rate</th><th class="num">FY${ASSUMPTIONS_YEAR} input</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function assumptionsNoteHtml() {
+    return `<p class="step-sub same-as-note">Assumptions: <strong>same as FY${ASSUMPTIONS_YEAR}</strong> — arrivals growth vs prior year, attrition rates, and promotion rates.</p>`;
+  }
+
+  function render() {
+    propagateAssumptions();
+    const chain = runPlan();
+    const baseline = chain.baseline;
+    let html = `
+      <div class="step">
+        <p class="step-hdr">Step 1 — FY2026 Baseline</p>
+        <p class="step-sub">This is where we expect to end FY2026.</p>
+        <div class="panel baseline">
+          <p class="panel-title">FY2026 Baseline · Anaplan latest forecast</p>
+          ${yearTables(baseline, 2026)}
+        </div>
+      </div>
+      <div class="flow-arrow">↓</div>`;
+
+    let priorDec = sum(DEC_2026);
+    let priorArr = { ...FY26.arrivals };
+    let priorLabel = "FY2026";
+
+    PLAN_YEARS.forEach((y, i) => {
+      const r = chain[y];
+      const inputsBlock =
+        y === ASSUMPTIONS_YEAR
+          ? `<div class="input-cards">
+          ${arrivalsCard(y, priorLabel, priorArr, r)}
+          ${rateCard("Attrition rates", y, "attrition")}
+          ${rateCard("Promotion out rates", y, "promo")}
+        </div>`
+          : assumptionsNoteHtml();
+
+      html += `
+      <div class="step year-block">
+        <p class="step-hdr">FY${y} — Assumptions</p>
+        <p class="step-sub">Starting Dec EOM: <strong>${fmt(priorDec)}</strong> (from ${priorLabel})</p>
+        ${inputsBlock}
+        <div class="flow-arrow">↓</div>
+        <div class="panel results">
+          <p class="panel-title">FY${y} Results — If these assumptions happen…</p>
+          ${yearTables(r, y)}
+        </div>
+      </div>`;
+      if (i < PLAN_YEARS.length - 1) html += `<div class="flow-arrow">↓</div>`;
+
+      priorDec = sum(r.ending);
+      priorArr = { ...r.arrivalsByBand };
+      priorLabel = `FY${y}`;
+    });
+
+    html += multiYearSummaryTable(chain);
+
+    document.getElementById("app").innerHTML = html;
+
+    document.querySelectorAll("input[data-kind]").forEach((inp) => {
+      inp.addEventListener("change", () => {
+        const y = Number(inp.dataset.y);
+        if (y !== ASSUMPTIONS_YEAR) return;
+        const v = Number(inp.value);
+        if (inp.dataset.kind === "arr-growth") {
+          inputs[y].arrivalsGrowthPct[inp.dataset.band] = v;
+        } else if (inp.dataset.kind === "attr") {
+          inputs[y].attritionPct[inp.dataset.band] = v / 100;
+        } else if (inp.dataset.kind === "promo") {
+          inputs[y].promoPct[inp.dataset.promo] = v / 100;
+        }
+        propagateAssumptions();
+        saveAssumptions();
+        render();
+      });
+    });
+  }
+
+  document.getElementById("seasonality-note").innerHTML =
+    "Annual arrivals, departures, and promotions are spread across months using separate FY2026 Anaplan curves (see <code>seasonality_fy26.js</code>).";
+
+  render();
+})();
+</script>
+</body>
+</html>
