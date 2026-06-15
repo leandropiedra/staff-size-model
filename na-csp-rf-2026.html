@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Self-contained FY26 Planning Input — open in any modern browser, no install required.">
-<title>FY26 Planning Input — West</title>
+<title>NA CSP RF - 2026</title>
 <style>
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -364,7 +364,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 </script>
 
 <script>
-/* Self-contained FY26 Planning Input — built 2026-06-09 */
+/* Self-contained FY26 Planning Input — built 2026-06-15 */
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 const THEME = {
   text: { primary: "#111827", secondary: "#4b5563", tertiary: "#9ca3af" },
@@ -2311,7 +2311,7 @@ const DEFAULT_LOCATION_STATE = {
 };
 const LOCATION_STATE_KEY = "locationState_v2";
 function PyramidModel() {
-  const [tab, setTab] = useCanvasState("fy26_planning_tab_locked_west", "planning_input");
+  const [tab, setTab] = useCanvasState("fy26_planning_tab_locked_all", "planning_input");
   const [inputs, setInputs] = useCanvasState("inputs_v4", DEFAULT_INPUTS);
   const [scenario, setScenario] = useCanvasState("scenario_v2", null);
   const [isComparing, setIsComparing] = useCanvasState("isComparing_v2", false);
@@ -5448,9 +5448,9 @@ function HistoricalRatesSection() {
     );
   }))), /* @__PURE__ */ React.createElement(Text, { size: "small", tone: "tertiary" }, "Rates shown as % of FY-average headcount; Senior Partner shows attrition only (no promotion above). Arrivals shown in absolute counts; the 2018\u20132019 and 2020\u20132021 columns are 2-year averages to align with the rate-chart structure above. Year-over-year is computed against the prior column. The 2027\u20132030 estimate is the planning baseline; rates are user-tunable from FY27 onward on the Model tab.")))));
 }
-const PLANNING_STATE_KEY = "planning_input_v5_west";
+const PLANNING_STATE_KEY = "planning_input_v5_all";
 const DEFAULT_PLANNING_INPUT_STATE = {
-  selectedRegion: "west",
+  selectedRegion: REGION_HIERARCHY[0]?.id ?? "atlantic",
   overrides: { region: {}, office: {} },
   howToOpen: true,
   sectionBOpen: true,
@@ -5500,7 +5500,9 @@ function parsePlanningScenarioFile(text) {
     },
     officeOpen: s.officeOpen || {}
   };
-  merged.selectedRegion = "west";
+  if (!REGION_HIERARCHY.find((r) => r.id === merged.selectedRegion)) {
+    merged.selectedRegion = REGION_HIERARCHY[0]?.id ?? "atlantic";
+  }
   return merged;
 }
 function formatPlanningSavedAt(iso) {
@@ -7402,10 +7404,11 @@ function PlanningInputTab({
   );
   const region = REGION_HIERARCHY.find((r) => r.id === state.selectedRegion) ?? REGION_HIERARCHY[0];
   useEffect(() => {
-    if (state.selectedRegion !== "west") {
-      setState((s) => ({ ...s, selectedRegion: "west" }));
+    if (!region) return;
+    if (state.selectedRegion !== region.id) {
+      setState((s) => ({ ...s, selectedRegion: region.id }));
     }
-  }, [state.selectedRegion]);
+  }, [region?.id]);
   const setRegion = (rid) => {
     setState((s) => ({ ...s, selectedRegion: rid }));
   };
@@ -7754,7 +7757,7 @@ function PlanningHeader({
 }) {
   const fileInputRef = useRef(null);
   const openFilePicker = () => fileInputRef.current?.click();
-  return /* @__PURE__ */ React.createElement(Stack, { gap: 14 }, /* @__PURE__ */ React.createElement(Row, { gap: 12, align: "center", wrap: true }, /* @__PURE__ */ React.createElement(H1, { style: { margin: 0 } }, "FY26 Planning Input \u2014 West"), /* @__PURE__ */ React.createElement(Spacer, null), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(Stack, { gap: 14 }, /* @__PURE__ */ React.createElement(Row, { gap: 12, align: "center", wrap: true }, /* @__PURE__ */ React.createElement(H1, { style: { margin: 0 } }, "NA CSP RF - 2026"), /* @__PURE__ */ React.createElement(Spacer, null), /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -7815,7 +7818,18 @@ function PlanningHeader({
         e.target.value = "";
       }
     }
-  )), /* @__PURE__ */ React.createElement(Row, { gap: 6, wrap: true, align: "center" }, /* @__PURE__ */ React.createElement(Text, { weight: "semibold" }, "Region:"), /* @__PURE__ */ React.createElement(Pill, { active: true }, "West (6)")), /* @__PURE__ */ React.createElement(PlanningPurposeCard, null), /* @__PURE__ */ React.createElement(PlanningHowToCard, { open: howToOpen, onToggle: onToggleHowTo }), /* @__PURE__ */ React.createElement(Row, { gap: 6, align: "center", wrap: true }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onExpandAll }, "Expand all"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onCollapseAll }, "Collapse all"), /* @__PURE__ */ React.createElement(Spacer, null), overrideCount > 0 && /* @__PURE__ */ React.createElement(Row, { gap: 6, align: "center" }, /* @__PURE__ */ React.createElement("span", { style: {
+  )), /* @__PURE__ */ React.createElement(Row, { gap: 6, wrap: true, align: "center" }, /* @__PURE__ */ React.createElement(Text, { weight: "semibold" }, "Region:"), REGION_HIERARCHY.map((r) => /* @__PURE__ */ React.createElement(
+    Pill,
+    {
+      key: r.id,
+      active: r.id === regionId,
+      onClick: () => onChangeRegion(r.id)
+    },
+    r.label,
+    " (",
+    r.offices.length,
+    ")"
+  ))), /* @__PURE__ */ React.createElement(PlanningPurposeCard, null), /* @__PURE__ */ React.createElement(PlanningHowToCard, { open: howToOpen, onToggle: onToggleHowTo }), /* @__PURE__ */ React.createElement(Row, { gap: 6, align: "center", wrap: true }, /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onExpandAll }, "Expand all"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onCollapseAll }, "Collapse all"), /* @__PURE__ */ React.createElement(Spacer, null), overrideCount > 0 && /* @__PURE__ */ React.createElement(Row, { gap: 6, align: "center" }, /* @__PURE__ */ React.createElement("span", { style: {
     padding: "3px 9px",
     borderRadius: 999,
     background: "#fef3c7",
