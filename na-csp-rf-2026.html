@@ -364,7 +364,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 </script>
 
 <script>
-/* Self-contained FY26 Planning Input — built 2026-06-15 */
+/* Self-contained FY26 Planning Input — built 2026-06-18 */
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 const THEME = {
   text: { primary: "#111827", secondary: "#4b5563", tertiary: "#9ca3af" },
@@ -2319,10 +2319,21 @@ function PyramidModel() {
     LOCATION_STATE_KEY,
     DEFAULT_LOCATION_STATE
   );
-  const [planningState, setPlanningState] = useCanvasState(
+  const [planningStateRaw, setPlanningStateRaw] = useCanvasState(
     PLANNING_STATE_KEY,
     DEFAULT_PLANNING_INPUT_STATE
   );
+  const planningState = useMemo(
+    () => normalizePlanningInputState(planningStateRaw),
+    [planningStateRaw]
+  );
+  const setPlanningState = useCallback((action) => {
+    setPlanningStateRaw((prev) => {
+      const base = normalizePlanningInputState(prev);
+      const next = typeof action === "function" ? action(base) : action;
+      return normalizePlanningInputState(next);
+    });
+  }, []);
   const [sensitivityInputs, setSensitivityInputs] = useCanvasState(
     SENSITIVITY_STATE_KEY,
     DEFAULT_SENSITIVITY_INPUTS
@@ -5455,8 +5466,23 @@ const DEFAULT_PLANNING_INPUT_STATE = {
   howToOpen: true,
   sectionBOpen: true,
   sectionCOpen: true,
-  officeOpen: {}
+  officeOpen: {},
+  officeMonthlyStaffOpen: {},
+  officePyramidRatiosOpen: {}
 };
+function normalizePlanningInputState(s) {
+  return {
+    ...DEFAULT_PLANNING_INPUT_STATE,
+    ...s,
+    overrides: {
+      region: s.overrides?.region ?? {},
+      office: s.overrides?.office ?? {}
+    },
+    officeOpen: s.officeOpen ?? {},
+    officeMonthlyStaffOpen: s.officeMonthlyStaffOpen ?? {},
+    officePyramidRatiosOpen: s.officePyramidRatiosOpen ?? {}
+  };
+}
 const PLANNING_FILE_APP_ID = "fy26-planning-input";
 const PLANNING_FILE_VERSION = 5;
 function downloadPlanningScenario(state) {
@@ -5491,15 +5517,7 @@ function parsePlanningScenarioFile(text) {
   if (!parsed || parsed.app !== PLANNING_FILE_APP_ID) return null;
   const s = parsed.state;
   if (!s || typeof s !== "object") return null;
-  const merged = {
-    ...DEFAULT_PLANNING_INPUT_STATE,
-    ...s,
-    overrides: {
-      region: s.overrides && s.overrides.region || {},
-      office: s.overrides && s.overrides.office || {}
-    },
-    officeOpen: s.officeOpen || {}
-  };
+  const merged = normalizePlanningInputState(s);
   if (!REGION_HIERARCHY.find((r) => r.id === merged.selectedRegion)) {
     merged.selectedRegion = REGION_HIERARCHY[0]?.id ?? "atlantic";
   }
@@ -6713,7 +6731,7 @@ const MONTHLY_COL_W = {
   month: 64,
   avg: 88
 };
-function MonthlyStaffTable({ grid, title, subtitle }) {
+function MonthlyStaffTable({ grid, title, subtitle, hideTitleBar }) {
   const bandLabel = (b) => {
     switch (b) {
       case "Senior Partner":
@@ -6752,7 +6770,7 @@ function MonthlyStaffTable({ grid, title, subtitle }) {
     boxSizing: "content-box",
     width: totalW,
     marginTop: 8
-  } }, /* @__PURE__ */ React.createElement("div", { style: {
+  } }, !hideTitleBar && /* @__PURE__ */ React.createElement("div", { style: {
     padding: "8px 14px 6px 14px",
     borderBottom: `1px solid ${PLAN_BORDER}`,
     background: "#fafbfc"
@@ -6893,7 +6911,7 @@ const MONTHLY_RATIO_COL_W = {
   avg: 88,
   healthy: 104
 };
-function MonthlyPyramidRatiosTable({ ratios, title, subtitle }) {
+function MonthlyPyramidRatiosTable({ ratios, title, subtitle, hideTitleBar }) {
   const theme = useHostTheme();
   const gridTemplate = [
     `${MONTHLY_RATIO_COL_W.band}px`,
@@ -6914,7 +6932,7 @@ function MonthlyPyramidRatiosTable({ ratios, title, subtitle }) {
     boxSizing: "content-box",
     width: totalW,
     marginTop: 8
-  } }, /* @__PURE__ */ React.createElement("div", { style: {
+  } }, !hideTitleBar && /* @__PURE__ */ React.createElement("div", { style: {
     padding: "8px 14px 6px 14px",
     borderBottom: `1px solid ${PLAN_BORDER}`,
     background: "#fafbfc"
@@ -7462,6 +7480,7 @@ function PlanningInputTab({
     RegionSection,
     {
       state,
+      setState,
       regionId: region.id,
       onEdit: (b, c, v) => setState((s) => applyRegionEdit(s, region.id, b, c, v))
     }
@@ -7858,6 +7877,7 @@ function PlanningHeader({
 }
 function RegionSection({
   state,
+  setState,
   regionId,
   onEdit
 }) {
@@ -8003,21 +8023,36 @@ function RegionSection({
     }
   )), (() => {
     const monthlyGrid = planMonthlyStaff(state, "region", regionId);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(
-      MonthlyStaffTable,
+    const regionLabel = region?.label ?? "";
+    const monthlyStaffOpen = state.regionMonthlyStaffOpen === true;
+    const pyramidRatiosOpen = state.regionPyramidRatiosOpen === true;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Stack, { gap: 4 }, /* @__PURE__ */ React.createElement(
+      CollapseHeaderRow,
       {
-        grid: monthlyGrid,
-        title: `Monthly staff size \u2014 ${region?.label ?? ""}`,
-        subtitle: /* @__PURE__ */ React.createElement(React.Fragment, null, "Jan\u2013Apr are recorded actuals. May\u2013Dec spreads your reforecast totals across months using NA-level seasonality (arrivals, departures, and promotions in). ", /* @__PURE__ */ React.createElement("b", null, "FY26 Avg"), " is the simple mean of the 12 monthly EOM values.")
-      }
-    )), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(
+        open: monthlyStaffOpen,
+        onToggle: () => setState((s) => ({
+          ...s,
+          regionMonthlyStaffOpen: !monthlyStaffOpen
+        }))
+      },
+      /* @__PURE__ */ React.createElement(H2, { style: { margin: 0 } }, "Monthly staff size \u2014 ", regionLabel)
+    ), monthlyStaffOpen && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Text, { tone: "secondary", size: "small" }, "Jan\u2013Apr are recorded actuals. May\u2013Dec spreads your reforecast totals across months using NA-level seasonality (arrivals, departures, and promotions in). ", /* @__PURE__ */ React.createElement("b", null, "FY26 Avg"), " is the simple mean of the 12 monthly EOM values."), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(MonthlyStaffTable, { grid: monthlyGrid, hideTitleBar: true })))), /* @__PURE__ */ React.createElement(Stack, { gap: 4 }, /* @__PURE__ */ React.createElement(
+      CollapseHeaderRow,
+      {
+        open: pyramidRatiosOpen,
+        onToggle: () => setState((s) => ({
+          ...s,
+          regionPyramidRatiosOpen: !pyramidRatiosOpen
+        }))
+      },
+      /* @__PURE__ */ React.createElement(H2, { style: { margin: 0 } }, "Pyramid ratios \u2014 ", regionLabel)
+    ), pyramidRatiosOpen && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Text, { tone: "secondary", size: "small" }, "Month-by-month pyramid composition derived from the EOM headcount above. A green pill means the value sits inside the healthy range.", /* @__PURE__ */ React.createElement("b", null, " FY26 Avg"), " applies the same formulas to the FY26 average staff size by band."), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(
       MonthlyPyramidRatiosTable,
       {
         ratios: planMonthlyRatios(monthlyGrid),
-        title: `Pyramid ratios \u2014 ${region?.label ?? ""}`,
-        subtitle: /* @__PURE__ */ React.createElement(React.Fragment, null, "Month-by-month pyramid composition derived from the EOM headcount above. A green pill means the value sits inside the healthy range.", /* @__PURE__ */ React.createElement("b", null, " FY26 Avg"), " applies the same formulas to the FY26 average staff size by band.")
+        hideTitleBar: true
       }
-    )));
+    )))));
   })(), /* @__PURE__ */ React.createElement(JumpToComparisonButton, { visible: showJump, onClick: jumpToStep1 }));
 }
 function LocationsSection({
@@ -8214,21 +8249,41 @@ function OfficeCard({
     }
   )), (() => {
     const officeMonthlyGrid = planMonthlyStaff(state, "office", regionId, officeId);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(
-      MonthlyStaffTable,
+    const monthlyStaffOpen = state.officeMonthlyStaffOpen?.[key] === true;
+    const pyramidRatiosOpen = state.officePyramidRatiosOpen?.[key] === true;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Stack, { gap: 4 }, /* @__PURE__ */ React.createElement(
+      CollapseHeaderRow,
       {
-        grid: officeMonthlyGrid,
-        title: `Monthly staff size \u2014 ${officeLabel}`,
-        subtitle: /* @__PURE__ */ React.createElement(React.Fragment, null, "Jan\u2013Apr are recorded actuals for ", officeLabel, ". May\u2013Dec spreads this office's reforecast totals across months using NA-level seasonality. ", /* @__PURE__ */ React.createElement("b", null, "FY26 Avg"), " is the simple mean of the 12 monthly EOM values.")
-      }
-    )), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(
+        open: monthlyStaffOpen,
+        onToggle: () => setState((s) => ({
+          ...s,
+          officeMonthlyStaffOpen: {
+            ...s.officeMonthlyStaffOpen ?? {},
+            [key]: !monthlyStaffOpen
+          }
+        }))
+      },
+      /* @__PURE__ */ React.createElement(H2, { style: { margin: 0, fontSize: 15 } }, "Monthly staff size \u2014 ", officeLabel)
+    ), monthlyStaffOpen && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Text, { tone: "secondary", size: "small" }, "Jan\u2013Apr are recorded actuals for ", officeLabel, ". May\u2013Dec spreads this office's reforecast totals across months using NA-level seasonality. ", /* @__PURE__ */ React.createElement("b", null, "FY26 Avg"), " is the simple mean of the 12 monthly EOM values."), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(MonthlyStaffTable, { grid: officeMonthlyGrid, hideTitleBar: true })))), /* @__PURE__ */ React.createElement(Stack, { gap: 4 }, /* @__PURE__ */ React.createElement(
+      CollapseHeaderRow,
+      {
+        open: pyramidRatiosOpen,
+        onToggle: () => setState((s) => ({
+          ...s,
+          officePyramidRatiosOpen: {
+            ...s.officePyramidRatiosOpen ?? {},
+            [key]: !pyramidRatiosOpen
+          }
+        }))
+      },
+      /* @__PURE__ */ React.createElement(H2, { style: { margin: 0, fontSize: 15 } }, "Pyramid ratios \u2014 ", officeLabel)
+    ), pyramidRatiosOpen && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Text, { tone: "secondary", size: "small" }, "Month-by-month pyramid composition derived from ", officeLabel, "'s EOM headcount above. A green pill means the value sits inside the healthy range. Small offices may show ratios outside the healthy range simply because the bands are thinly populated \u2014 read these alongside the headline staff size."), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", paddingBottom: 2 } }, /* @__PURE__ */ React.createElement(
       MonthlyPyramidRatiosTable,
       {
         ratios: planMonthlyRatios(officeMonthlyGrid),
-        title: `Pyramid ratios \u2014 ${officeLabel}`,
-        subtitle: /* @__PURE__ */ React.createElement(React.Fragment, null, "Month-by-month pyramid composition derived from ", officeLabel, "'s EOM headcount above. A green pill means the value sits inside the healthy range. Small offices may show ratios outside the healthy range simply because the bands are thinly populated \u2014 read these alongside the headline staff size.")
+        hideTitleBar: true
       }
-    )));
+    )))));
   })())));
 }
 const SENS = {
